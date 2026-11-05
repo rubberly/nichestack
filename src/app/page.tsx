@@ -21,6 +21,18 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="mx-auto mb-10 max-w-5xl px-4">
+        <div className="rounded-2xl bg-brand-600 px-6 py-8 text-white sm:px-10">
+          <p className="text-sm font-semibold uppercase tracking-wide text-brand-100">For self-storage owners</p>
+          <h2 className="mt-2 text-2xl font-bold sm:text-3xl">Switch from your old software for free. Get paid on autopay.</h2>
+          <p className="mt-2 max-w-2xl text-brand-100">
+            Upload your rent roll and we import your units and tenants. Tenants rent online, pay by card or autopay,
+            and get friendly late reminders automatically.
+          </p>
+          <ButtonLink href="/login" variant="secondary" className="mt-5">Start free trial</ButtonLink>
+        </div>
+      </section>
+
       <section className="mx-auto grid max-w-5xl gap-4 px-4 pb-20 sm:grid-cols-2">
         {PRODUCTS.map((p) => (
           <Card key={p.key} className="flex flex-col">

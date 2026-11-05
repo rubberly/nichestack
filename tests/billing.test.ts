@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PRODUCTS, getPlan, lookupKey, parseLookupKey } from "@/lib/billing/plans";
+import { PRODUCTS, getPlan, lookupKey, parseLookupKey, priceFor } from "@/lib/billing/plans";
 import { FREE_SEATS, hasAccess, limitsFor, mrr, seatLimit, withinLimit } from "@/lib/billing/entitlements";
 import { shouldApply, toSubRecord, type StripeSubLike } from "@/lib/billing/mapping";
 import { assertTestKey } from "@/lib/billing/stripe";
@@ -27,10 +27,19 @@ describe("plan catalog", () => {
     }
   });
   it("lookup keys round-trip and reject junk", () => {
-    expect(parseLookupKey(lookupKey("PHOTOVAULT", "business"))).toEqual({ product: "PHOTOVAULT", plan: "business" });
+    expect(parseLookupKey(lookupKey("PHOTOVAULT", "business"))).toEqual({ product: "PHOTOVAULT", plan: "business", interval: "month" });
+    expect(parseLookupKey(lookupKey("FACILITY", "pro", "year"))).toEqual({ product: "FACILITY", plan: "pro", interval: "year" });
+    expect(lookupKey("FACILITY", "pro", "year")).toBe("FACILITY_pro_year");
     expect(parseLookupKey("FACILITY_platinum")).toBeNull();
+    expect(parseLookupKey("FACILITY_pro_week")).toBeNull();
+    expect(parseLookupKey("FACILITY_pro_year_x")).toBeNull();
     expect(parseLookupKey("NOPE_pro")).toBeNull();
     expect(parseLookupKey(null)).toBeNull();
+  });
+  it("annual plans charge 10 months for 12", () => {
+    const pro = getPlan("FACILITY", "pro")!;
+    expect(priceFor(pro, "month")).toBe(199);
+    expect(priceFor(pro, "year")).toBe(1990);
   });
 });
 
@@ -65,6 +74,9 @@ describe("entitlements", () => {
       ]),
     ).toBe(getPlan("FACILITY", "pro")!.priceMonthly + getPlan("PORTAL", "starter")!.priceMonthly);
   });
+  it("MRR counts annual plans as a twelfth of the yearly price", () => {
+    expect(mrr([{ product: "FACILITY", planKey: "pro", status: "active", interval: "year" }])).toBe(165.83); // 1990 / 12
+  });
 });
 
 describe("Stripe webhook mapping", () => {
@@ -73,6 +85,7 @@ describe("Stripe webhook mapping", () => {
       orgId: "org_1",
       product: "FACILITY",
       planKey: "pro",
+      interval: "month",
       status: "active",
       stripeSubscriptionId: "sub_1",
       currentPeriodEnd: new Date(1_900_000_000 * 1000),
@@ -89,6 +102,7 @@ describe("Stripe webhook mapping", () => {
   });
   it("plan changes follow the price lookup key", () => {
     expect(toSubRecord(sub({}, "FACILITY_business"))?.planKey).toBe("business");
+    expect(toSubRecord(sub({}, "FACILITY_business_year"))?.interval).toBe("year");
   });
   it("a late 'canceled' event for an old subscription can't overwrite a newer active one", () => {
     const existing = { stripeSubscriptionId: "sub_new", status: "active" };

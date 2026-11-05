@@ -15,6 +15,7 @@ export interface SubRecord {
   orgId: string;
   product: ProductKey;
   planKey: string;
+  interval: string;
   status: string;
   stripeSubscriptionId: string;
   currentPeriodEnd: Date | null;
@@ -35,6 +36,7 @@ export function toSubRecord(sub: StripeSubLike): SubRecord | null {
     orgId,
     product: parsed.product,
     planKey: parsed.plan,
+    interval: parsed.interval,
     status: sub.status,
     stripeSubscriptionId: sub.id,
     currentPeriodEnd: end ? new Date(end * 1000) : null,

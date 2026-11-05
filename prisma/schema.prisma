@@ -74,20 +74,29 @@ enum Product {
 }
 
 model Org {
-  id               String         @id @default(cuid())
-  name             String
-  slug             String         @unique
-  stripeCustomerId String?        @unique
-  storageUsedBytes BigInt         @default(0)
+  id                  String         @id @default(cuid())
+  name                String
+  slug                String         @unique
+  stripeCustomerId    String?        @unique
+  storageUsedBytes    BigInt         @default(0)
   // Branding (used by the client portal, Phase 3)
-  logoKey          String?
-  brandColor       String?
-  settings         Json           @default("{}")
-  createdAt        DateTime       @default(now())
-  memberships      Membership[]
-  invites          Invite[]
-  subscriptions    Subscription[]
-  auditLogs        AuditLog[]
+  logoKey             String?
+  brandColor          String?
+  settings            Json           @default("{}")
+  createdAt           DateTime       @default(now())
+  // Stripe Connect Express account that receives rent (Phase 2)
+  connectAccountId    String?        @unique
+  connectChargesReady Boolean        @default(false)
+  memberships         Membership[]
+  invites             Invite[]
+  subscriptions       Subscription[]
+  auditLogs           AuditLog[]
+  facilities          Facility[]
+  units               Unit[]
+  contacts            Contact[]
+  leases              Lease[]
+  rentPayments        RentPayment[]
+  messageLogs         MessageLog[]
 }
 
 model Membership {
@@ -122,6 +131,7 @@ model Subscription {
   orgId                String
   product              Product
   planKey              String
+  interval             String    @default("month") // "month" | "year"
   status               String // Stripe status: trialing, active, past_due, canceled, ...
   stripeSubscriptionId String    @unique
   currentPeriodEnd     DateTime?
@@ -155,4 +165,123 @@ model AuditLog {
   org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@index([orgId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: Storage Facility
+// ---------------------------------------------------------------------------
+
+enum UnitStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  MAINTENANCE
+}
+
+enum LeaseStatus {
+  PENDING // booked online, waiting for first payment
+  ACTIVE
+  ENDED
+}
+
+model Facility {
+  id             String   @id @default(cuid())
+  orgId          String
+  name           String
+  slug           String   @unique // public booking page: /book/[slug]
+  address        String   @default("")
+  phone          String   @default("")
+  email          String   @default("")
+  graceDays      Int      @default(5) // days after due before a tenant counts as overdue
+  bookingEnabled Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  org            Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  units          Unit[]
+
+  @@index([orgId])
+}
+
+model Unit {
+  id                String     @id @default(cuid())
+  orgId             String
+  facilityId        String
+  label             String // "A12"
+  size              String     @default("") // "10x10"
+  monthlyPriceCents Int
+  status            UnitStatus @default(AVAILABLE)
+  notes             String     @default("")
+  createdAt         DateTime   @default(now())
+  org               Org        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  facility          Facility   @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  leases            Lease[]
+
+  @@unique([facilityId, label])
+  @@index([orgId, status])
+}
+
+/// An org's own customer (a tenant here; a portal client in Phase 3).
+model Contact {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  email     String
+  phone     String   @default("")
+  createdAt DateTime @default(now())
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  leases    Lease[]
+
+  @@unique([orgId, email])
+}
+
+model Lease {
+  id                   String        @id @default(cuid())
+  orgId                String
+  unitId               String
+  contactId            String
+  status               LeaseStatus   @default(PENDING)
+  source               String        @default("manual") // manual | booking | import
+  startDate            DateTime
+  endDate              DateTime?
+  monthlyRentCents     Int
+  paidThrough          DateTime // rent is covered up to (not including) this date
+  payToken             String        @unique // public pay link: /pay/[token]
+  autopay              Boolean       @default(false)
+  stripeSubscriptionId String?       @unique
+  createdAt            DateTime      @default(now())
+  org                  Org           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  unit                 Unit          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  contact              Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  payments             RentPayment[]
+
+  @@index([orgId, status])
+}
+
+model RentPayment {
+  id               String   @id @default(cuid())
+  orgId            String
+  leaseId          String
+  amountCents      Int
+  platformFeeCents Int      @default(0)
+  months           Int      @default(1)
+  method           String // card | autopay | cash | check | other
+  stripeRef        String?  @unique // invoice or checkout session id: makes webhooks idempotent
+  paidAt           DateTime @default(now())
+  org              Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  lease            Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, paidAt])
+}
+
+model MessageLog {
+  id       String   @id @default(cuid())
+  orgId    String
+  leaseId  String?
+  channel  String   @default("email")
+  to       String
+  template String // e.g. "late:5:2026-11-01" (step + paidThrough, so each step sends once per missed month)
+  sentAt   DateTime @default(now())
+  org      Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([leaseId, template])
+  @@index([orgId, sentAt])
 }

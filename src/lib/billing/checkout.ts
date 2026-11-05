@@ -1,9 +1,9 @@
 import type Stripe from "stripe";
 import { stripe } from "./stripe";
-import { lookupKey, type PlanKey, type ProductKey } from "./plans";
+import { lookupKey, type Interval, type PlanKey, type ProductKey } from "./plans";
 
-export async function findPrice(product: ProductKey, plan: PlanKey): Promise<Stripe.Price | null> {
-  const res = await stripe().prices.list({ lookup_keys: [lookupKey(product, plan)], active: true, limit: 1 });
+export async function findPrice(product: ProductKey, plan: PlanKey, interval: Interval = "month"): Promise<Stripe.Price | null> {
+  const res = await stripe().prices.list({ lookup_keys: [lookupKey(product, plan, interval)], active: true, limit: 1 });
   return res.data[0] ?? null;
 }
 

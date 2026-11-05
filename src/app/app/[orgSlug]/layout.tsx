@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { requireOrg } from "@/lib/tenancy";
 import { can } from "@/lib/permissions";
+import { hasAccess } from "@/lib/billing/entitlements";
 import { AppTopBar } from "@/components/app-shell";
 
 export default async function OrgLayout({ children, params }: { children: React.ReactNode; params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
-  const { org, user, role } = await requireOrg(orgSlug);
+  const { org, user, role, db } = await requireOrg(orgSlug);
   const base = `/app/${org.slug}`;
+  const facilityOn = hasAccess(await db.subscription.findFirst({ where: { product: "FACILITY" } }));
   const nav = [
     { href: base, label: "Overview" },
+    facilityOn && { href: `${base}/facility`, label: "Storage Facility" },
     can(role, "billing:manage") && { href: `${base}/billing`, label: "Billing" },
     { href: `${base}/members`, label: "Team" },
     can(role, "org:update") && { href: `${base}/settings`, label: "Settings" },

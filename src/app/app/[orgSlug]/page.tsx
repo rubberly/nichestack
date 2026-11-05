@@ -45,7 +45,9 @@ export default async function Overview({ params }: { params: Promise<{ orgSlug: 
               </div>
               <p className="mt-1 text-sm text-slate-600">{p.tagline}</p>
               <p className="mt-3 text-sm">
-                {on ? (
+                {on && p.key === "FACILITY" ? (
+                  <Link href={`/app/${orgSlug}/facility`} className="font-medium text-brand-600 hover:underline">Open {p.name} →</Link>
+                ) : on ? (
                   <span className="text-slate-700">{getPlan(p.key, sub!.planKey)?.name} plan · <span className="text-slate-500">workspace opens in Phase {p.phase}</span></span>
                 ) : canBill ? (
                   <Link href={`/app/${orgSlug}/billing`} className="font-medium text-brand-600 hover:underline">Start free trial →</Link>

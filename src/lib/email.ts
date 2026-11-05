@@ -5,13 +5,14 @@ interface Email {
   subject: string;
   text: string;
   html?: string;
+  replyTo?: string;
 }
 
 /**
  * Sends through Resend's HTTP API (free tier: 3,000/month) using plain fetch, no SDK.
  * With no RESEND_API_KEY in development, the email is printed to the terminal instead.
  */
-export async function sendEmail({ to, subject, text, html }: Email): Promise<void> {
+export async function sendEmail({ to, subject, text, html, replyTo }: Email): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     if (process.env.NODE_ENV === "production") throw new Error("RESEND_API_KEY is not set");
@@ -21,7 +22,7 @@ export async function sendEmail({ to, subject, text, html }: Email): Promise<voi
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.EMAIL_FROM, to, subject, text, html }),
+    body: JSON.stringify({ from: process.env.EMAIL_FROM, to, subject, text, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
   });
   if (!res.ok) throw new Error(`Email send failed (${res.status})`);
 }

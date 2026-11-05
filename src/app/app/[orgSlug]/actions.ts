@@ -8,28 +8,30 @@ import { canAssignRole, canRemove, type Role } from "@/lib/permissions";
 import { rateLimit } from "@/lib/ratelimit";
 import { buttonEmail, sendEmail } from "@/lib/email";
 import { SITE, appUrl } from "@/lib/site";
-import { PLAN_KEYS, PRODUCT_KEYS, TRIAL_DAYS, getProduct } from "@/lib/billing/plans";
+import { INTERVALS, PLAN_KEYS, PRODUCT_KEYS, TRIAL_DAYS, getProduct } from "@/lib/billing/plans";
 import { hasAccess, seatLimit } from "@/lib/billing/entitlements";
 import { stripe } from "@/lib/billing/stripe";
 import { findPrice, portalConfigId } from "@/lib/billing/checkout";
 import { syncSubscription } from "@/lib/billing/sync";
 import type { ActionState } from "@/components/action-form";
 
-const PlanChoice = z.object({ product: z.enum(PRODUCT_KEYS), plan: z.enum(PLAN_KEYS) });
+const PlanChoice = z.object({ product: z.enum(PRODUCT_KEYS), plan: z.enum(PLAN_KEYS), interval: z.enum(INTERVALS).default("month") });
+const readChoice = (fd: FormData) =>
+  PlanChoice.safeParse({ product: fd.get("product"), plan: fd.get("plan"), interval: fd.get("interval") ?? undefined });
 
 // ── Billing ────────────────────────────────────────────────────────────────
 
 /** Start a subscription (with a free trial the first time) via Stripe Checkout. */
 export async function startCheckout(slug: string, formData: FormData) {
   const ctx = await requireOrg(slug, "billing:manage");
-  const parsed = PlanChoice.safeParse({ product: formData.get("product"), plan: formData.get("plan") });
+  const parsed = readChoice(formData);
   if (!parsed.success) redirect(`/app/${slug}/billing?error=invalid`);
-  const { product, plan } = parsed.data;
+  const { product, plan, interval } = parsed.data;
 
   const existing = await ctx.db.subscription.findFirst({ where: { product } });
   if (hasAccess(existing)) redirect(`/app/${slug}/billing?error=already`);
 
-  const price = await findPrice(product, plan);
+  const price = await findPrice(product, plan, interval);
   if (!price) redirect(`/app/${slug}/billing?error=price`);
 
   const s = stripe();
@@ -63,13 +65,13 @@ export async function startCheckout(slug: string, formData: FormData) {
 /** Upgrade / downgrade within the same product. Prorated by Stripe. */
 export async function changePlan(slug: string, formData: FormData) {
   const ctx = await requireOrg(slug, "billing:manage");
-  const parsed = PlanChoice.safeParse({ product: formData.get("product"), plan: formData.get("plan") });
+  const parsed = readChoice(formData);
   if (!parsed.success) redirect(`/app/${slug}/billing?error=invalid`);
-  const { product, plan } = parsed.data;
+  const { product, plan, interval } = parsed.data;
 
   const sub = await ctx.db.subscription.findFirst({ where: { product } });
   if (!sub || !hasAccess(sub)) redirect(`/app/${slug}/billing?error=invalid`);
-  const price = await findPrice(product, plan);
+  const price = await findPrice(product, plan, interval);
   if (!price) redirect(`/app/${slug}/billing?error=price`);
 
   const s = stripe();
@@ -79,7 +81,7 @@ export async function changePlan(slug: string, formData: FormData) {
     proration_behavior: "create_prorations",
   });
   await syncSubscription(live.id);
-  await ctx.db.auditLog.create({ data: { orgId: ctx.org.id, userId: ctx.user.id, action: "billing.plan_changed", meta: { product, plan } } });
+  await ctx.db.auditLog.create({ data: { orgId: ctx.org.id, userId: ctx.user.id, action: "billing.plan_changed", meta: { product, plan, interval } } });
   redirect(`/app/${slug}/billing?changed=${encodeURIComponent(getProduct(product)!.name)}`);
 }
 

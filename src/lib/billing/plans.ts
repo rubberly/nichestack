@@ -43,13 +43,24 @@ export function getPlan(product: string, plan: string): Plan | undefined {
   return getProduct(product)?.plans.find((p) => p.key === plan);
 }
 
-/** Stripe price lookup key, e.g. "FACILITY_pro". Created by `npm run stripe:setup`. */
-export function lookupKey(product: ProductKey, plan: PlanKey): string {
-  return `${product}_${plan}`;
+export type Interval = "month" | "year";
+export const INTERVALS = ["month", "year"] as const;
+/** Annual plans: pay for 10 months, get 12 (2 months free). */
+export const YEARLY_MONTHS_CHARGED = 10;
+
+export function priceFor(plan: Plan, interval: Interval): number {
+  return interval === "year" ? plan.priceMonthly * YEARLY_MONTHS_CHARGED : plan.priceMonthly;
 }
 
-export function parseLookupKey(key: string | null | undefined): { product: ProductKey; plan: PlanKey } | null {
+/** Stripe price lookup key, e.g. "FACILITY_pro" or "FACILITY_pro_year". Created by `npm run stripe:setup`. */
+export function lookupKey(product: ProductKey, plan: PlanKey, interval: Interval = "month"): string {
+  return interval === "year" ? `${product}_${plan}_year` : `${product}_${plan}`;
+}
+
+export function parseLookupKey(key: string | null | undefined): { product: ProductKey; plan: PlanKey; interval: Interval } | null {
   if (!key) return null;
-  const [product, plan] = key.split("_");
-  return getPlan(product, plan) ? { product: product as ProductKey, plan: plan as PlanKey } : null;
+  const [product, plan, suffix, ...rest] = key.split("_");
+  if (rest.length || (suffix !== undefined && suffix !== "year")) return null;
+  if (!getPlan(product, plan)) return null;
+  return { product: product as ProductKey, plan: plan as PlanKey, interval: suffix === "year" ? "year" : "month" };
 }

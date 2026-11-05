@@ -6,7 +6,7 @@ Build order is revenue-first. See **[PLAN.md](PLAN.md)**.
 | Phase | Product | Status |
 |---|---|---|
 | 1 | Core platform: accounts, orgs, roles, Stripe billing, admin | ✅ built |
-| 2 | Storage Facility: units, bookings, rent autopay (+1% platform fee), switching importer, annual plans | 🚧 |
+| 2 | Storage Facility: units, bookings, rent autopay (+1% platform fee), switching importer, annual plans | ✅ built |
 | 3 | Client Portal | planned |
 | 4 | PhotoVault | planned |
 | 5 | QuoteFollow | planned |
@@ -56,6 +56,32 @@ npm run dev          # http://localhost:3000
    (Without it, the billing page pulls the result from Stripe right after checkout, so local testing still works.)
 
 Live keys (`sk_live_`) are refused unless `ALLOW_LIVE_STRIPE=true`.
+
+### Test checklist (Phase 2: Storage Facility)
+The seed gives **Demo Self Storage** a demo Facility Pro plan, 20 units and 3 tenants (one paid up, one 7 days late, one 25 days late). Without Stripe you can test everything except card payments.
+
+1. Open **Storage Facility** in the top nav. The **Dashboard** shows occupancy, rent collected, overdue tenants and the value of empty units.
+2. **Units:** add `E1`–`E10` (prefix `E`, from 1 to 10, size 10x15, price 120). Edit a price and set one to maintenance.
+3. **Tenants:** move someone into a unit ("paid in cash"), record a payment for Sam (7 days late) and watch him leave the overdue list. Then move someone out.
+4. **Import (free switching):** download the template CSV and upload it. Click **Preview**, then **Import**. Try your own export with headers like `Unit #`, `Rate` and `Paid Thru`.
+5. **Late reminders:** copy `CRON_SECRET` from `.env` and run
+   `curl -H "Authorization: Bearer YOUR_SECRET" http://localhost:3000/api/cron/daily`.
+   The reminder emails print in Terminal 2. Run it again and nothing is re-sent.
+6. **Annual plans:** on **Billing**, flip the switch to **Yearly** (2 months free).
+
+**With Stripe test keys (card rent, autopay, online booking):**
+1. Stripe dashboard (test mode) → **Connect** → *Get started*. This enables Connect for your platform; it's free in test mode.
+2. Run `npm run stripe:setup` again to create the yearly prices.
+3. Run `stripe listen --forward-to localhost:3000/api/stripe/webhook` and put the `whsec_...` it prints in `.env`.
+4. **Facility → Settings & payments → Connect payments.** In test mode, use Stripe's test data (phone `000 000 0000`, SMS code `000-000`, routing `110000000`, account `000123456789`).
+5. Open the **booking page** (`/book/maple-street-demo`), rent a unit with card `4242 4242 4242 4242`, and you land on "You're all set". The unit becomes occupied and the tenant shows **autopay**.
+6. From **Tenants**, click **Pay page ↗** for Alex (25 days late) and pay. His paid-through date moves forward.
+7. In Stripe → Connect → the connected account, you'll see the rent, with your application fee (card cost + 1%) kept by the platform.
+
+**How the money works:** tenants pay on your platform and Stripe sends the money to the owner's account (a "destination charge").
+On these charges Stripe bills the card fee to **you**, so the application fee = card processing at cost (2.9% + 30¢) + your 1%. You keep about 1% of all card rent.
+Owners see this fee on their payments page and on /pricing.
+**Risk to know:** with destination charges, the platform covers chargebacks and refunds if the owner's balance can't. Keep `PLATFORM_FEE_PERCENT` honest, and have a lawyer review the terms before going live.
 
 ## Deploy (when ready)
 - **App:** Vercel (import the GitHub repo and add the `.env` values). Hobby is free for testing; Pro ($20/mo) is required once you charge customers.

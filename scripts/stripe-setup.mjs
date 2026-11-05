@@ -12,26 +12,36 @@ if (!key.startsWith("sk_test_")) {
 }
 const stripe = new Stripe(key);
 
+const YEARLY_MONTHS_CHARGED = 10; // keep in sync with src/lib/billing/plans.ts
+
 for (const product of catalog.products) {
   for (const plan of product.plans) {
-    const lookup_key = `${product.key}_${plan.key}`;
-    const found = await stripe.prices.list({ lookup_keys: [lookup_key], limit: 1 });
-    if (found.data[0]) {
-      console.log(`✓ ${lookup_key} exists (${found.data[0].id})`);
-      continue;
+    let productId = null;
+    for (const interval of ["month", "year"]) {
+      const lookup_key = interval === "year" ? `${product.key}_${plan.key}_year` : `${product.key}_${plan.key}`;
+      const found = await stripe.prices.list({ lookup_keys: [lookup_key], limit: 1, expand: ["data.product"] });
+      if (found.data[0]) {
+        productId = typeof found.data[0].product === "string" ? found.data[0].product : found.data[0].product.id;
+        console.log(`✓ ${lookup_key} exists (${found.data[0].id})`);
+        continue;
+      }
+      if (!productId) {
+        const p = await stripe.products.create({
+          name: `${product.name} ${plan.name}`,
+          metadata: { app: "nichestack", product: product.key, plan: plan.key },
+        });
+        productId = p.id;
+      }
+      const dollars = interval === "year" ? plan.priceMonthly * YEARLY_MONTHS_CHARGED : plan.priceMonthly;
+      const price = await stripe.prices.create({
+        product: productId,
+        currency: "usd",
+        unit_amount: dollars * 100,
+        recurring: { interval },
+        lookup_key,
+      });
+      console.log(`+ ${lookup_key}: $${dollars}/${interval} (${price.id})`);
     }
-    const p = await stripe.products.create({
-      name: `${product.name} ${plan.name}`,
-      metadata: { app: "nichestack", product: product.key, plan: plan.key },
-    });
-    const price = await stripe.prices.create({
-      product: p.id,
-      currency: "usd",
-      unit_amount: plan.priceMonthly * 100,
-      recurring: { interval: "month" },
-      lookup_key,
-    });
-    console.log(`+ ${lookup_key}: $${plan.priceMonthly}/mo (${price.id})`);
   }
 }
 

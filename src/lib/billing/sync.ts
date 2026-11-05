@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 import { db } from "../db";
 import { stripe } from "./stripe";
 import { customerId, shouldApply, toSubRecord, type StripeSubLike } from "./mapping";
+import { handleRentEvent } from "../facility/sync";
 
 /**
  * Pull the subscription fresh from Stripe (so out-of-order webhooks can't leave stale state)
@@ -53,6 +54,7 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<boolean> {
     return false; // unique violation: Stripe re-sent an event we already handled
   }
   try {
+    if (await handleRentEvent(event)) return true;
     if (SUB_EVENTS.has(event.type)) {
       await syncSubscription((event.data.object as { id: string }).id);
     }

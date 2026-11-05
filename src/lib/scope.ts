@@ -3,7 +3,11 @@
  * Every query on a tenant model gets `orgId` forced into its filter / data.
  * Add new org-owned models (Unit, File, Quote, ...) to TENANT_MODELS as phases land.
  */
-export const TENANT_MODELS = new Set<string>(["Membership", "Invite", "Subscription", "AuditLog"]);
+export const TENANT_MODELS = new Set<string>([
+  "Membership", "Invite", "Subscription", "AuditLog",
+  // Phase 2: Storage Facility
+  "Facility", "Unit", "Contact", "Lease", "RentPayment", "MessageLog",
+]);
 
 type Args = Record<string, any> | undefined;
 

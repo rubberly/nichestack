@@ -64,6 +64,11 @@ describe("org scoping (data isolation)", () => {
     expect(() => scopeArgs("Org", "delete", { where: { id: ORG } }, ORG)).toThrow();
     expect(() => scopeArgs("Org", "create", { data: { name: "x" } }, ORG)).toThrow();
   });
+  it("scopes Storage Facility data too", () => {
+    for (const m of ["Facility", "Unit", "Contact", "Lease", "RentPayment", "MessageLog"]) {
+      expect(scopeArgs(m, "findMany", { where: { orgId: "org_other" } }, ORG)).toEqual({ where: { orgId: ORG } });
+    }
+  });
   it("leaves non-tenant models alone", () => {
     const args = { where: { email: "a@b.c" } };
     expect(scopeArgs("User", "findUnique", args, ORG)).toBe(args);
@@ -79,6 +84,10 @@ describe("raw database access is restricted", () => {
     "src/lib/ratelimit.ts",
     "src/lib/admin.ts",
     "src/lib/billing/sync.ts",
+    // Storage Facility: webhooks, public booking/pay pages and the daily job have no signed-in org.
+    "src/lib/facility/sync.ts",
+    "src/lib/facility/public.ts",
+    "src/lib/facility/daily.ts",
   ]);
   const walk = (dir: string): string[] =>
     readdirSync(dir).flatMap((f) => {
