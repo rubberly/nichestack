@@ -1,0 +1,49 @@
+{
+  "trialDays": 14,
+  "products": [
+    {
+      "key": "FACILITY",
+      "name": "Storage Facility",
+      "tagline": "List units, take online bookings and collect rent automatically.",
+      "phase": 2,
+      "plans": [
+        { "key": "starter", "name": "Starter", "priceMonthly": 99, "features": ["Up to 100 units", "Online booking page", "Autopay rent + late reminders", "2 team seats"], "limits": { "units": 100, "facilities": 1, "seats": 2 } },
+        { "key": "pro", "name": "Pro", "priceMonthly": 199, "features": ["Up to 400 units", "Everything in Starter", "Tenant portal", "5 team seats"], "limits": { "units": 400, "facilities": 1, "seats": 5 } },
+        { "key": "business", "name": "Multi-site", "priceMonthly": 349, "features": ["Unlimited units and facilities", "Everything in Pro", "Priority support", "15 team seats"], "limits": { "units": null, "facilities": null, "seats": 15 } }
+      ]
+    },
+    {
+      "key": "PORTAL",
+      "name": "Client Portal",
+      "tagline": "A branded portal where your customers see files, quotes and invoices.",
+      "phase": 3,
+      "plans": [
+        { "key": "starter", "name": "Starter", "priceMonthly": 19, "features": ["Up to 100 customers", "Your logo and colors", "Magic-link customer login", "2 team seats"], "limits": { "contacts": 100, "seats": 2 } },
+        { "key": "pro", "name": "Pro", "priceMonthly": 39, "features": ["Up to 1,000 customers", "Everything in Starter", "5 team seats"], "limits": { "contacts": 1000, "seats": 5 } },
+        { "key": "business", "name": "Business", "priceMonthly": 79, "features": ["Unlimited customers", "Everything in Pro", "15 team seats"], "limits": { "contacts": null, "seats": 15 } }
+      ]
+    },
+    {
+      "key": "PHOTOVAULT",
+      "name": "PhotoVault",
+      "tagline": "Deliver photos and job files to clients with a private link or password.",
+      "phase": 4,
+      "plans": [
+        { "key": "starter", "name": "Starter", "priceMonthly": 12, "features": ["50 GB storage", "Files up to 500 MB", "Password + expiring links", "1 seat"], "limits": { "storageGb": 50, "maxFileMb": 500, "seats": 1 } },
+        { "key": "pro", "name": "Pro", "priceMonthly": 24, "features": ["250 GB storage", "Files up to 2 GB", "Everything in Starter", "3 team seats"], "limits": { "storageGb": 250, "maxFileMb": 2000, "seats": 3 } },
+        { "key": "business", "name": "Studio", "priceMonthly": 49, "features": ["1 TB storage", "Files up to 5 GB", "Everything in Pro", "10 team seats"], "limits": { "storageGb": 1000, "maxFileMb": 5000, "seats": 10 } }
+      ]
+    },
+    {
+      "key": "QUOTEFOLLOW",
+      "name": "QuoteFollow",
+      "tagline": "Friendly automatic follow-ups on every quote until the customer answers.",
+      "phase": 5,
+      "plans": [
+        { "key": "starter", "name": "Starter", "priceMonthly": 19, "features": ["50 quotes a month", "Automatic email follow-ups", "Won-revenue dashboard", "1 seat"], "limits": { "quotesPerMonth": 50, "sms": false, "seats": 1 } },
+        { "key": "pro", "name": "Pro", "priceMonthly": 39, "features": ["Unlimited quotes", "Everything in Starter", "3 team seats"], "limits": { "quotesPerMonth": null, "sms": false, "seats": 3 } },
+        { "key": "business", "name": "Pro + Texts", "priceMonthly": 69, "features": ["Unlimited quotes", "Text-message follow-ups", "10 team seats"], "limits": { "quotesPerMonth": null, "sms": true, "seats": 10 } }
+      ]
+    }
+  ]
+}

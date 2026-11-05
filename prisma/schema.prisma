@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth.js tables
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String       @id @default(cuid())
+  name            String?
+  email           String       @unique
+  emailVerified   DateTime?
+  image           String?
+  isPlatformAdmin Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  accounts        Account[]
+  sessions        Session[]
+  memberships     Membership[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Core platform (Phase 1)
+// ---------------------------------------------------------------------------
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum Product {
+  FACILITY
+  PORTAL
+  PHOTOVAULT
+  QUOTEFOLLOW
+}
+
+model Org {
+  id               String         @id @default(cuid())
+  name             String
+  slug             String         @unique
+  stripeCustomerId String?        @unique
+  storageUsedBytes BigInt         @default(0)
+  // Branding (used by the client portal, Phase 3)
+  logoKey          String?
+  brandColor       String?
+  settings         Json           @default("{}")
+  createdAt        DateTime       @default(now())
+  memberships      Membership[]
+  invites          Invite[]
+  subscriptions    Subscription[]
+  auditLogs        AuditLog[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  orgId     String
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@index([orgId])
+}
+
+model Invite {
+  id         String    @id @default(cuid())
+  orgId      String
+  email      String
+  role       Role      @default(MEMBER)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+  org        Org       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  orgId                String
+  product              Product
+  planKey              String
+  status               String // Stripe status: trialing, active, past_due, canceled, ...
+  stripeSubscriptionId String    @unique
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  org                  Org       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, product])
+}
+
+model StripeEvent {
+  id        String   @id // Stripe event id: makes webhooks idempotent
+  type      String
+  createdAt DateTime @default(now())
+}
+
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String?
+  action    String
+  meta      Json     @default("{}")
+  createdAt DateTime @default(now())
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+}

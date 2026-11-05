@@ -1,5 +1,17 @@
 # PLAN.md: Nichestack (working name)
 
+> **Update (Nov 2026): revenue-first.** This section replaces anything below that it contradicts.
+> - **Build order:** 1 Core → **2 Storage Facility** → 3 Client Portal → 4 PhotoVault → 5 QuoteFollow.
+> - **Prices** (source of truth: `src/lib/billing/catalog.json`):
+>   - Facility $99 / $199 / $349
+>   - Portal $19 / $39 / $79
+>   - PhotoVault $12 / $24 / $49
+>   - QuoteFollow $19 / $39 / $69
+>   - **Annual plans:** pay for 10 months, get 12.
+> - **Rent collection:** Stripe Connect **Express** with a disclosed platform fee on rent (default 1%, set by `PLATFORM_FEE_PERCENT`). Stripe charges about $2 per active account per month.
+> - **Free switching:** a CSV importer that understands common exports from other storage software.
+> - **Hosting:** the app on Vercel, public pages on GitHub Pages. **No Render.**
+
 One Next.js codebase, one Postgres database, four niche products sold as separate subscriptions.
 Each customer business is an **Org**. One org can subscribe to one or more products.
 
